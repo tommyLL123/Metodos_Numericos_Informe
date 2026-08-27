@@ -53,6 +53,7 @@ Flow Matching \sep Rectified Flow \sep Integración Numérica \sep Modelos Gener
 
 \section{Introduction}
 \label{introduction}
+
 Muchos problemas modernos requieren transformar un con-
 junto de puntos, generados de manera simple y aleatoria, en
 otro conjunto de puntos que sigue una distribución mucho más
@@ -68,6 +69,7 @@ cional del proceso. Este problema resulta particularmente rele-
 vante en el contexto de los modelos generativos modernos, en
 los cuales el transporte eficiente y preciso de distribuciones de
 probabilidad constituye un componente central.
+
 
 Para profundizar en el tema, se han seleccionado trabajos recientes y relevantes que abordan distintos enfoques y avances en Flow Matching y métodos relacionados. Estos antecedentes permiten comprender la evolución de las ideas y los desafíos que se han presentado en el área.
 
@@ -87,7 +89,11 @@ Finalmente, \citet{xiao2026solvers}  llevó a cabo un análisis comparativo de d
 
 En conjunto, estos antecedentes sugieren que la eficiencia de los modelos basados en Flow Matching y Rectified Flow no depende únicamente de la capacidad del campo vectorial para transformar una distribución en otra. También influyen aspectos como la geometría de las trayectorias y el método numérico empleado para resolver la ecuación diferencial. Por esto, resulta interesante analizar cómo se comporta el modelo al mantener constante el campo vectorial y variar únicamente el método de integración, lo que permite observar con mayor claridad cómo la discretización numérica afecta tanto la trayectoria como el resultado final y los recursos computacionales requeridos.
 
-Como objetivo general tenemos: modelar numéricamente
+
+A pesar de los recientes y notables avances en los modelos generativos continuos, un inconveniente importante tanto de los Flujos Normalizantes Continuos (CNFs, descritos por EDOs) como de los modelos de difusión, tambien descritos por EDOs, es que su simulación e integración numérica requieren múltiples evaluaciones de la red neuronal para generar una muestra de alta calidad. Este proceso iterativo da como resultado tiempos de inferencia prolongados, lo que limita su eficiencia y aplicabilidad en escenarios de tiempo real. Para mitigar este inconveniente, investigaciones recientes han motivado el desarrollo de métodos que imponen propiedades de transporte óptimo (OT) en las EDOs neuronales, produciendo flujos con trayectorias más rectas que pueden integrarse con precisión utilizando un menor número de evaluaciones de la red neuronal. Sin embargo, la literatura carece de un análisis exhaustivo sobre cómo la elección específica del método de integración numérica altera la trayectoria, el error y el costo cuando se aplican estos flujos enderezados. El presente trabajo se justifica en la necesidad de llenar este vacío analizando el efecto del integrador numérico sobre modelos de flujo rectificado en un entorno controlado de distribuciones bidimensionales. Comprender la relación exacta entre la rectitud de la trayectoria, la precisión del integrador numérico y la eficiencia computacional es un paso indispensable para optimizar el despliegue de modelos generativos modernos.
+
+
+Por lo expuesto, como objetivo general tenemos: modelar numéricamente
 el transporte continuo de muestras mediante ecuaciones difer-
 enciales que transformen una distribución inicial simple en
 una distribución objetivo bidimensional, con el propósito de
@@ -197,5 +203,7 @@ arXiv preprint arXiv:2605.00836.
 \url{https://arxiv.org/abs/2605.00836}
 
 \end{thebibliography}
+
+\end{document}
 
 \end{document}
