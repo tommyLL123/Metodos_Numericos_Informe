@@ -53,13 +53,47 @@ Flow Matching \sep Rectified Flow \sep Integración Numérica \sep Modelos Gener
 
 \section{Introduction}
 \label{introduction}
-Muchos problemas modernos requieren transformar un conjunto de puntos, generados de manera simple y aleatoria, en otro conjunto de puntos que sigue una distribución mucho más compleja. Este tipo de transformación puede describirse mediante una ecuación diferencial ordinaria que indica, en cada instante de tiempo, la velocidad con la que cada punto debe desplazarse para alcanzar su posición final. Dado que estas ecuaciones diferenciales rara vez admiten una solución analítica exacta, resulta necesario resolverlas mediante métodos numéricos de integración, cuya elección determina de manera directa tanto la precisión de la trayectoria obtenida como el costo computacional del proceso. Este problema resulta particularmente relevante en el contexto de los modelos generativos modernos, en los cuales el transporte eficiente y preciso de distribuciones de probabilidad constituye un componente central.
+Muchos problemas modernos requieren transformar un con-
+junto de puntos, generados de manera simple y aleatoria, en
+otro conjunto de puntos que sigue una distribución mucho más
+compleja. Este tipo de transformación puede describirse me-
+diante una ecuación diferencial ordinaria que indica, en cada
+instante de tiempo, la velocidad con la que cada punto debe de-
+splazarse para alcanzar su posición final. Dado que estas ecua-
+ciones diferenciales rara vez admiten una solución analítica ex-
+acta, resulta necesario resolverlas mediante métodos numéricos
+de integración, cuya elección determina de manera directa tanto
+la precisión de la trayectoria obtenida como el costo computa-
+cional del proceso. Este problema resulta particularmente rele-
+vante en el contexto de los modelos generativos modernos, en
+los cuales el transporte eficiente y preciso de distribuciones de
+probabilidad constituye un componente central.
 
-Los modelos generativos basados en flujos y transporte continuo han ganado gran relevancia recientemente. En particular, \cite{lipman2022flow} introdujeron el marco general de \textit{Flow Matching}, mientras que \cite{liu2022flow} propusieron \textit{Rectified Flow} para enderezar las trayectorias de transporte y acelerar la generación.
+Para profundizar en el tema, se han seleccionado trabajos recientes y relevantes que abordan distintos enfoques y avances en Flow Matching y métodos relacionados. Estos antecedentes permiten comprender la evolución de las ideas y los desafíos que se han presentado en el área.
 
-Para mejorar la eficiencia y linealidad del flujo, se han desarrollado extensiones como el uso de transporte óptimo con minibatches \citep{pooladian2023multisample, tong2023improving}. Asimismo, avances recientes buscan acelerar la inferencia garantizando consistencia en la velocidad del flujo \citep{yang2024consistency}.
+Como primer antecedente, \citet{lipman2022flow} introdujeron Flow Matching, un marco que permite entrenar campos vectoriales para modelar el transporte continuo entre una distribución inicial y una distribución objetivo mediante ecuaciones diferenciales ordinarias. Lo interesante de su propuesta es que posibilita definir diferentes trayectorias de probabilidad y entrenar el campo de velocidad sin necesidad de simular previamente dichas trayectorias durante el entrenamiento. Además, los autores muestran que los caminos basados en transporte óptimo pueden generar muestras de forma más rápida y eficiente en comparación con otras alternativas, gracias al uso de métodos numéricos para resolver las ODE en la fase de muestreo, lo que proporciona la base conceptual y matemática sobre la que se apoyan los modelos de transporte analizados en este proyecto.
 
-Como objetivo general tenemos: modelar numéricamente el transporte continuo de muestras mediante ecuaciones diferenciales que transformen una distribución inicial simple en una distribución objetivo bidimensional, con el propósito de analizar la relación entre la precisión, la eficiencia computacional y la rectitud de las trayectorias generadas mediante diferentes campos vectoriales y métodos de integración.
+Posteriormente, \citet{liu2022flow} propusieron Rectified Flow, cuyo objetivo es aprender trayectorias de transporte lo más rectas posible entre las distribuciones inicial y final. La idea principal consiste en emplear un campo de velocidad que aproxime la trayectoria lineal que une los puntos correspondientes de ambas distribuciones. Esta característica resulta especialmente interesante desde una perspectiva numérica, ya que una trayectoria recta permite una discretización temporal mucho más gruesa sin perder precisión. Los autores demostraron que, mediante el procedimiento llamado reflow, es posible obtener trayectorias cada vez más rectas y lograr buenos resultados incluso utilizando un solo paso de Euler, lo que implica que se pueden reducir considerablemente los pasos necesarios para la integración y, en consecuencia, el tiempo requerido para generar muestras
+
+En esta misma línea, \citet{pooladian2023multisample} desarrollaron Multisample Flow Matching, una extensión que introduce acoplamientos no triviales entre muestras de las distribuciones de origen y destino. El objetivo de esta propuesta es aprovechar la estructura existente entre las muestras para construir campos vectoriales con trayectorias más rectas. Los autores demostraron que, además de reducir la varianza durante el entrenamiento, este enfoque permite generar muestras de buena calidad utilizando un menor número de evaluaciones del campo vectorial, lo que evidencia experimentalmente que la geometría de las trayectorias puede influir de manera directa en la eficiencia computacional del proceso de integración, y resalta la importancia de considerar este aspecto en el presente estudio.
+
+De manera relacionada, \citet{tong2023improving}  exploraron el uso del transporte óptimo dentro de Flow Matching a través de su propuesta llamada Optimal Transport Conditional Flow Matching. En su estudio, los autores muestran que los acoplamientos obtenidos mediante transporte óptimo permiten construir flujos más simples y estables, además de facilitar una inferencia más rápida. Estos resultados refuerzan la idea de que la manera en que se establece la correspondencia entre las distribuciones inicial y objetivo influye directamente en la complejidad del campo vectorial y, por lo tanto, en la dificultad de su resolución numérica, lo que resulta especialmente relevante para el análisis realizado en este proyecto.
+
+Posteriormente, \citet{yang2024consistency}  presentaron Consistency Flow Matching, una propuesta enfocada en construir trayectorias rectas mediante la aplicación de restricciones de consistencia en el campo de velocidad. A diferencia de otros enfoques que dependen principalmente de procesos iterativos para rectificar las trayectorias, esta metodología incorpora de manera explícita la consistencia de la velocidad para enlazar distintos momentos en el tiempo con un mismo destino final. Los autores argumentan que este mecanismo favorece la simplicidad de las trayectorias y posibilita una generación eficiente, requiriendo menos evaluaciones del campo vectorial. Así, su trabajo subraya que mantener trayectorias menos complejas sigue siendo clave para optimizar la velocidad de inferencia en los modelos basados en Flow Matching, aportando un enfoque novedoso en este ámbito.
+
+Desde el enfoque teórico, \citet{zhou2025error}  analizaron el error presente en los modelos generativos desarrollados con Flow Matching. Su trabajo se centra en cómo la distribución generada se aproxima a la distribución objetivo y en qué condiciones se puede garantizar esta convergencia, utilizando como referencia la distancia de Wasserstein-2. Lo interesante de este antecedente es que permite separar claramente el error que proviene del aprendizaje del campo de velocidad de aquel que surge al resolver numéricamente la ecuación diferencial. Esta distinción resulta crucial para este proyecto, pues ayuda a entender mejor cómo el método de integración influye en la distribución final que se obtiene.
+
+Finalmente, \citet{xiao2026solvers}  llevó a cabo un análisis comparativo de distintos métodos de integración numérica aplicados a modelos de Flow Matching. En su estudio, exploró alternativas como Euler, midpoint explícito, Runge-Kutta de cuarto orden y Dormand-Prince, realizando pruebas con distribuciones sintéticas bidimensionales. Al comparar la calidad de las muestras y la cantidad de evaluaciones requeridas del campo vectorial, notó que los métodos más avanzados pueden ser más eficientes sin comprometer la calidad de los resultados. De esta manera, su trabajo muestra cómo la elección del método de integración puede marcar diferencias sutiles pero importantes en el comportamiento práctico de estos modelos.
+
+En conjunto, estos antecedentes sugieren que la eficiencia de los modelos basados en Flow Matching y Rectified Flow no depende únicamente de la capacidad del campo vectorial para transformar una distribución en otra. También influyen aspectos como la geometría de las trayectorias y el método numérico empleado para resolver la ecuación diferencial. Por esto, resulta interesante analizar cómo se comporta el modelo al mantener constante el campo vectorial y variar únicamente el método de integración, lo que permite observar con mayor claridad cómo la discretización numérica afecta tanto la trayectoria como el resultado final y los recursos computacionales requeridos.
+
+Como objetivo general tenemos: modelar numéricamente
+el transporte continuo de muestras mediante ecuaciones difer-
+enciales que transformen una distribución inicial simple en
+una distribución objetivo bidimensional, con el propósito de
+analizar la relación entre la precisión, la eficiencia computa-
+cional y la rectitud de las trayectorias generadas mediante difer-
+entes campos vectoriales y métodos de integración
 
 \section{Title 2}
 \lipsum[1]
@@ -67,8 +101,7 @@ Como objetivo general tenemos: modelar numéricamente el transporte continuo de 
 \subsection{Subsection title}
 
 \begin{figure}[htbp]
-	\centering 
-	\includegraphics[width=0.4\textwidth, angle=-90]{PHYSO_cover_image.pdf}	
+	\centering     \includegraphics[width=0.4\textwidth, angle=-90]{PHYSO_cover_image.pdf}	
 	\caption{Physics Open journal cover} 
 	\label{fig_mom0}%
 \end{figure}
@@ -149,6 +182,19 @@ Yang, L., Zhang, Z., Zhang, Z., Liu, X., Xu, M., Zhang, W., Meng, C., Ermon, S.,
 Consistency flow matching: Defining straight flows with velocity consistency.
 arXiv preprint arXiv:2407.02398.
 \url{https://doi.org/10.48550/arXiv.2407.02398}
+
+\bibitem[Zhou and Liu(2025)]{zhou2025error}
+Zhou, Z., Liu, W., 2025.
+An Error Analysis of Flow Matching for Deep Generative Modeling.
+In: Proceedings of the 42nd International Conference on Machine Learning.
+PMLR 267, 78903--78932.
+\url{https://proceedings.mlr.press/v267/zhou25l.html}
+
+\bibitem[Xiao(2026)]{xiao2026solvers}
+Xiao, H., 2026.
+From Euler to Dormand-Prince: ODE Solvers for Flow Matching Generative Models.
+arXiv preprint arXiv:2605.00836.
+\url{https://arxiv.org/abs/2605.00836}
 
 \end{thebibliography}
 
