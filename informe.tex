@@ -82,7 +82,7 @@
             country={}}
 
 \begin{abstract}
-El proyecto estudiará un flujo continuo descrito por una ecuación diferencial que transporta muestras desde una distribución inicial simple hacia una distribución objetivo bidimensional. En lugar de entrenar un modelo generativo de imágenes a gran escala, implementaremos distintos campos vectoriales de prueba o, alternativamente, una red neuronal pequeña que permita aproximar el campo de transporte y observar cómo evoluciona la distribución a lo largo del tiempo. Utilizaremos datos sintéticos y se evaluará cómo el integrador altera la trayectoria, el error final y el costo. El destino final será evaluar la relación entre precisión y eficiencia, identificando qué tan importante es que las trayectorias sean rectas o cercanas a las trayectorias ideales. La base teórica del proyecto estará relacionada con papers que presenten diferentes variantes de rectified flow, flow matching y trayectorias de transporte más rectas.
+The project will study a continuous flow described by a differential equation that transports samples from a simple initial distribution to a two-dimensional target distribution. Instead of training a large-scale generative image model, we will implement different test vector fields or, alternatively, a small neural network to approximate the transport field and observe how the distribution evolves over time. We will use synthetic data and evaluate how the integrator affects the trajectory, final error, and computational cost. The ultimate goal will be to evaluate the relationship between accuracy and efficiency, identifying how important it is for the trajectories to be straight or close to the ideal trajectories. The theoretical foundation of the project will be related to papers that present different variants of rectified flow, flow matching, and straighter transport trajectories.
 \end{abstract}
 
 \begin{keyword}
@@ -135,13 +135,7 @@ En conjunto, estos antecedentes sugieren que la eficiencia de los modelos basado
 A pesar de los recientes y notables avances en los modelos generativos continuos, un inconveniente importante tanto de los Flujos Normalizantes Continuos (CNFs, descritos por EDOs) como de los modelos de difusión, tambien descritos por EDOs, es que su simulación e integración numérica requieren múltiples evaluaciones de la red neuronal para generar una muestra de alta calidad. Este proceso iterativo da como resultado tiempos de inferencia prolongados, lo que limita su eficiencia y aplicabilidad en escenarios de tiempo real. Para mitigar este inconveniente, investigaciones recientes han motivado el desarrollo de métodos que imponen propiedades de transporte óptimo (OT) en las EDOs neuronales, produciendo flujos con trayectorias más rectas que pueden integrarse con precisión utilizando un menor número de evaluaciones de la red neuronal. Sin embargo, la literatura carece de un análisis exhaustivo sobre cómo la elección específica del método de integración numérica altera la trayectoria, el error y el costo cuando se aplican estos flujos enderezados. El presente trabajo se justifica en la necesidad de llenar este vacío analizando el efecto del integrador numérico sobre modelos de flujo rectificado en un entorno controlado de distribuciones bidimensionales. Comprender la relación exacta entre la rectitud de la trayectoria, la precisión del integrador numérico y la eficiencia computacional es un paso indispensable para optimizar el despliegue de modelos generativos modernos.
 
 
-Por lo expuesto, como objetivo general tenemos: modelar numéricamente
-el transporte continuo de muestras mediante ecuaciones difer-
-enciales que transformen una distribución inicial simple en
-una distribución objetivo bidimensional, con el propósito de
-analizar la relación entre la precisión, la eficiencia computa-
-cional y la rectitud de las trayectorias generadas mediante difer-
-entes campos vectoriales y métodos de integración. En base a ello desarrollamos nuestros objetivos específicos los cuales son:
+Por lo expuesto, como objetivo general tenemos: modelar numéricamente el transporte continuo de muestras mediante ecuaciones diferenciales que transformen una distribución inicial simple en una distribución objetivo bidimensional, con el propósito de analizar la relación entre la precisión, la eficiencia computa cional y la rectitud de las trayectorias generadas mediante diferentes campos vectoriales y métodos de integración. En base a ello desarrollamos nuestros objetivos específicos los cuales son:
 \begin{enumerate}
 \item Formular e implementar un modelo numérico basado en EDOs que represente el transporte de muestras desde una distribución inicial simple hacia una distribución objetivo bidimensional mediante campos vectoriales de prueba.
 \item Evaluar el comportamiento del modelo bajo un conjunto base de parámetros, considerando la trayectoria de las muestras, el error respecto a la distribución objetivo y el costo computacional asociado al proceso de integración.
@@ -151,60 +145,60 @@ entes campos vectoriales y métodos de integración. En base a ello desarrollamo
 \item Aplicar el modelo numérico al transporte de distribuciones bidimensionales para determinar la relación entre la rectitud de las trayectorias, el método de integración empleado y la eficiencia en la generación de muestras.
 \end{enumerate}
 
-\section{Title 2}
-\lipsum[1]
-
-\subsection{Subsection title}
-
-\begin{figure}[htbp]
-	\centering     \includegraphics[width=0.4\textwidth, angle=-90]{PHYSO_cover_image.pdf}	
-	\caption{Physics Open journal cover} 
-	\label{fig_mom0}%
-\end{figure}
-
-A random equation, the Toomre stability criterion:
-
-\begin{equation}
-    Q = \frac{\sigma_v \times \kappa}{\pi \times G \times \Sigma}
-\end{equation}
-
-\section{Title 3}
-\lipsum[2]
-
-\subsection{Subsection title}
-\lipsum[3]
-
-\begin{table}[htbp]
-\centering
-\begin{tabular}{l c c c} 
- \hline
- Source & RA (J2000) & DEC (J2000) & $V_{\rm sys}$ \\
-        & [h,m,s]    & [o,','']    & \kms          \\
- \hline
- NGC\,253 & 00:47:33.120 & -25:17:17.59 & $235 \pm 1$ \\ 
- M\,82 & 09:55:52.725, & +69:40:45.78 & $269 \pm 2$  \\ 
- \hline
-\end{tabular}
-\caption{Random table with galaxies coordinates and velocities.}
-\label{Table1}
-\end{table}
-
-
-\section{Discussion}
-\lipsum[4]
-
-\section{Summary and conclusions}
-\lipsum[1-4]
-
-
-\section*{Acknowledgements}
-Thanks to ...
-
-\appendix
-
-\section{Appendix title 1}
-
-\section{Appendix title 2}
+% \section{Title 2}
+% \lipsum[1]
+% 
+% \subsection{Subsection title}
+% 
+% \begin{figure}[htbp]
+% 	\centering     \includegraphics[width=0.4\textwidth, angle=-90]{PHYSO_cover_image.pdf}	
+% 	\caption{Physics Open journal cover} 
+% 	\label{fig_mom0}%
+% \end{figure}
+% 
+% A random equation, the Toomre stability criterion:
+% 
+% \begin{equation}
+%     Q = \frac{\sigma_v \times \kappa}{\pi \times G \times \Sigma}
+% \end{equation}
+% 
+% \section{Title 3}
+% \lipsum[2]
+% 
+% \subsection{Subsection title}
+% \lipsum[3]
+% 
+% \begin{table}[htbp]
+% \centering
+% \begin{tabular}{l c c c} 
+%  \hline
+%  Source & RA (J2000) & DEC (J2000) & $V_{\rm sys}$ \\
+%          & [h,m,s]    & [o,','']    & \kms          \\
+%  \hline
+%  NGC\,253 & 00:47:33.120 & -25:17:17.59 & $235 \pm 1$ \\ 
+%  M\,82 & 09:55:52.725, & +69:40:45.78 & $269 \pm 2$  \\ 
+%  \hline
+% \end{tabular}
+% \caption{Random table with galaxies coordinates and velocities.}
+% \label{Table1}
+% \end{table}
+% 
+% 
+% \section{Discussion}
+% \lipsum[4]
+% 
+% \section{Summary and conclusions}
+% \lipsum[1-4]
+% 
+% 
+% \section*{Acknowledgements}
+% Thanks to ...
+% 
+% \appendix
+% 
+% \section{Appendix title 1}
+% 
+% \section{Appendix title 2}
 
 %% Bibliografía integrada directamente
 \begin{thebibliography}{00}
