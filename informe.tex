@@ -149,74 +149,40 @@ Por lo expuesto, como objetivo general tenemos: modelar numéricamente el transp
 \label{sec:metodologia}
 
 \subsection{Modelo del Sistema}
-El desarrollo de este proyecto se fundamenta en la formulación de Modelos Generativos Continuos (como Continuous Normalizing Flows), los cuales modelan la transformación progresiva de una densidad de probabilidad empírica a través del tiempo. Teóricamente, la evolución de esta densidad de probabilidad $p_t(x)$ en el tiempo $t \in [0,1]$ está gobernada rigurosamente por la ecuación de continuidad (o ecuación de transporte):
+El fenómeno de estudio se modela como un flujo continuo descrito por la Ecuación Diferencial Ordinaria (EDO):
 \begin{equation}
-    \frac{\partial p_t(x)}{\partial t} + \nabla \cdot (p_t(x)v_t(x)) = 0
+    \frac{dx_t}{dt} = v(x_t, t), \qquad x_0 \sim \pi_0, \qquad t \in [0,1],
 \end{equation}
-donde el primer término representa la variación temporal de la densidad de probabilidad local, y el segundo término es la divergencia espacial del flujo de probabilidad. Esta Ecuación en Derivadas Parciales (EDP) asegura la conservación de la masa (probabilidad), determinando cómo el campo de velocidades $v_t(x)$ acumula o dispersa la distribución en el espacio.
+donde $x_t \in \mathbb{R}^2$ representa la posición de una partícula en el instante $t$, $\pi_0$ es una distribución inicial simple (una distribución Normal multivariada estándar $\mathcal{N}(0, I)$) y $v(x_t, t)$ es un campo vectorial de velocidad que transporta las muestras hacia una distribución objetivo bidimensional $\pi_1$ al tiempo $t=1$. El punto parte de una posición inicial aleatoria en $t=0$ y la simulación corre hasta $t=1$, momento en el cual se espera que haya alcanzado la distribución objetivo.
 
-Para evitar la alta complejidad computacional de resolver la EDP directamente, el sistema se aborda desde una perspectiva lagrangiana. El transporte continuo se describe de manera equivalente mediante el seguimiento de trayectorias individuales a través de la siguiente Ecuación Diferencial Ordinaria (EDO):
-\begin{equation}
-    \frac{dZ_t}{dt} = v_\theta(Z_t, t), \quad Z_0 \sim \pi_0
-\end{equation}
-El problema central consiste en encontrar un campo vectorial aproximado por una red neuronal, $v_\theta(Z_t, t)$, que permita transportar muestras desde una distribución inicial simple y tratable $\pi_0$ (ruido gaussiano) hacia la distribución objetivo $\pi_1$ (los datos a generar). La solución en el instante $t=1$, denotada como $Z_1$, sigue la distribución empírica de los datos.
-
-Para entrenar $v_\theta$ sin resolver iterativamente la EDO durante la optimización, se emplean enfoques de emparejamiento libre de simulación (\textit{simulation-free}). Bajo el marco de Rectified Flow, el objetivo es conectar las muestras $X_0 \sim \pi_0$ y $X_1 \sim \pi_1$ mediante una interpolación lineal $X_t = tX_1 + (1-t)X_0$. La red se optimiza resolviendo el problema de mínimos cuadrados:
-\begin{equation}
-    \min_\theta \int_0^1 \mathbb{E} \left[ || (X_1 - X_0) - v_\theta(X_t, t) ||^2 \right] dt
-\end{equation}
-Equivalentemente, el marco de Flow Matching define una ruta de probabilidad condicional basada en Transporte Óptimo. Ambos enfoques garantizan matemáticamente que el transporte de partículas ocurra en líneas rectas y a velocidad constante, lo que simplifica la topología del campo vectorial y reduce drásticamente la dificultad de la integración numérica durante la fase de inferencia.
+Se consideran dos formas de definir el campo $v$: (a) un campo vectorial recto, construido mediante interpolación lineal $x_t = t x_1 + (1-t) x_0$ entre pares de puntos muestreados de $\pi_0$ y $\pi_1$, cuya velocidad resulta constante e igual a $v = x_1 - x_0$; y (b) un campo vectorial curvo de referencia, que introduce no linealidad en la trayectoria. Esta idea de emplear una velocidad constante para trazar trayectorias rectas corresponde al principio central propuesto por \citet{liu2022flow} en Rectified Flow y por \citet{lipman2022flow} en Flow Matching. Cabe notar que, en ambos trabajos, el campo de velocidad se obtiene habitualmente entrenando una red neuronal $v_\theta(x,t)$ mediante regresión condicional; en el presente estudio se opta por campos definidos analíticamente en lugar de entrenar dicha red, con el fin de aislar el efecto del método de integración numérica sin introducir la variabilidad propia del proceso de aprendizaje, tal como se detalla en los Supuestos. Como distribuciones objetivo $\pi_1$ se emplean conjuntos de datos sintéticos bidimensionales y reproducibles: una mezcla de gaussianas y el conjunto conocido como \textit{two moons}. Se usan ambas versiones del campo $v$ a propósito, dado que el objetivo es comparar si la forma del camino (recto frente a curvo) afecta el resultado al cambiar el método de integración.
 
 \subsection{Supuestos y Simplificaciones}
-\label{sec:supuestos}
-
-Para garantizar un entorno controlado que permita aislar y evaluar cuantitativamente el desempeño de los integradores numéricos sin la interferencia de factores ajenos al campo vectorial, se adoptan los siguientes supuestos teóricos y simplificaciones metodológicas, junto con sus respectivas limitaciones:
+Se adoptan las siguientes simplificaciones respecto al problema general abordado en la literatura, con el fin de enfocar el análisis en el desempeño del integrador numérico:
 
 \begin{itemize}
-    \item \textbf{Suavidad y regularidad del campo vectorial (Condición de Lipschitz):} Se asume que el campo vectorial $v_\theta(x,t)$ parametrizado por la red neuronal es continuo y satisface la condición de Lipschitz respecto a $x$ en el dominio compacto $\Omega \times [0,1]$, es decir, $\|v_\theta(x,t) - v_\theta(y,t)\| \le L \|x - y\|$ para alguna constante de Lipschitz $L > 0$. Este supuesto es fundamental para garantizar matemáticamente la existencia y unicidad de las trayectorias continuas $Z_t$ (Teorema de Picard-Lindelöf), así como la estabilidad de los métodos numéricos de Euler y Runge-Kutta \cite{lipman2022flow}.
-    
-    \textit{Limitación:} En la práctica, las aproximaciones mediante redes neuronales no acotadas pueden presentar discontinuidades locales o gradientes elevados en regiones de baja densidad de datos, lo que potencialmente incrementa el error de truncamiento local en pasos $dt$ grandes.
-
-    \item \textbf{Precisión e independización del entrenamiento:} Se asume que la red neuronal aproxima con suficiente exactitud el campo de velocidad ideal $v(x,t)$ tras la fase de optimización. En consecuencia, se asume que cualquier desviación o error observado en la distribución final generada $Z_1$ respecto a la distribución objetivo $\pi_1$ se atribuye predominantemente al error de discretización del integrador numérico y no a un déficit de capacidad del modelo generativo.
-    
-    \textit{Limitación:} Si el entrenamiento incurre en un error residual de regresión $\mathrm{MSE} > 0$, existe una frontera de error irreducible inherente al campo aprendido que ningún método de integración numérica puede corregir.
-
-    \item \textbf{Naturaleza determinista del flujo (Ausencia de difusividad estocástica):} A diferencia de los modelos de difusión estocástica tradicional basados en Ecuaciones Diferenciales Estocásticas (SDE), el marco de \textit{Flow Matching} y \textit{Rectified Flow} modela el transporte mediante una EDO puramente determinista \cite{liu2022flow}. Se asume que no existen perturbaciones estocásticas durante la integración temporal de las partículas desde $t=0$ hasta $t=1$.
-    
-    \textit{Limitación:} Aunque esta naturaleza determinista habilita el uso de integradores de EDOs estándar (Euler, RK4, RKF45), elimina el efecto autorregulador que el ruido estocástico suele aportar frente a pequeñas desviaciones en la trayectoria.
-
-    \item \textbf{Dimensionalidad reducida y datos sintéticos 2D:} Se asume que el análisis del transporte numérico sobre distribuciones empíricas bidimensionales (tales como \textit{moons} u \textit{8-gaussians}) refleja la dinámica cualitativa y cuantitativa de los flujos continuos de probabilidad. Esta simplificación permite visualizar de forma directa la geometría de las trayectorias y calcular de manera exacta los indicadores de costo computacional y error geométrico.
-    
-    \textit{Limitación:} La baja dimensionalidad reduce los problemas de mal acondicionamiento matricial y rigidez (\textit{stiffness}) que suelen emerger en espacios de alta dimensión (p. ej., imágenes de alta resolución), por lo que las tasas de convergencia observadas representan un escenario idealizado.
-
-    \item \textbf{Distribución base canónica:} Se adopta como distribución inicial $\pi_0$ una distribución Normal multivariada estándar $\mathcal{N}(0, I)$, facilitando el muestreo de condiciones iniciales $Z_0$ independientes e idénticamente distribuidas.
-    
-    \textit{Limitación:} Muestreos iniciales atípicos en las colas de la distribución gaussiana pueden requerir trayectorias de integración más extensas, exigiendo mayor adaptación en solucionadores de paso adaptativo.
-
-    \item \textbf{Arquitectura de red no convolucional (Aproximación por MLP):} Dado que las distribuciones objetivo son conjuntos de puntos bidimensionales continuos $(x_1, x_2) \in \mathbb{R}^2$ y no imágenes o datos estructurados en grillas espaciales, se asume que el campo de velocidad $v_\theta(x,t)$ se parametriza adecuadamente mediante un Perceptrón Multicapa (MLP) liviano con activaciones suaves (ej. Softplus o SiLU), en lugar de una red neuronal convolucional (CNN) o U-Net.
-    
-    \textit{Limitación:} Aunque el MLP simplifica drásticamente el entrenamiento y la evaluación en MATLAB, no posee la inductiva de invarianza espacial propia de las CNNs, lo que limita este modelo a problemas de baja dimensión.
-
-    \item \textbf{Formulación determinista frente a Modelos de Difusión Estocásticos:} Se adopta el supuesto de que el transporte de probabilidad se rige por la ODE de flujo de probabilidad determinista de \textit{Flow Matching}, prescindiendo del término de difusión estocástica $\sigma(t)dW_t$ propio de los modelos de difusión tradicionales (SDEs/DDPM) \cite{lipman2022flow}. Asimismo, se asume que el entrenamiento mediante regresión de campos vectoriales condicionales ($\mathrm{MSE}$) reemplaza con suficiente precisión el aprendizaje por estimación de \textit{score} (\textit{score-based diffusion}).
-    
-    \textit{Limitación:} Al eliminar la estocasticidad durante el muestreo, el modelo pierde el efecto de "autocorrección" de ruido que poseen las SDEs, haciendo que la precisión de la trayectoria dependa exclusivamente de la estabilidad del integrador numérico elegido (Euler, RK4 o RKF45).
+    \item \textbf{Dimensionalidad reducida:} Se trabaja en dimensión $d=2$, en lugar de las imágenes de alta dimensión reportadas en los artículos de referencia. Esto permite visualizar directamente las trayectorias individuales y las distribuciones resultantes, además de reducir la carga computacional necesaria para evaluar múltiples métodos numéricos.
+    \item \textbf{Campos vectoriales analíticos:} Se emplean campos de velocidad definidos mediante una fórmula matemática conocida, en lugar de entrenar una red neuronal como en el objetivo de regresión condicional de \citet{lipman2022flow}. Esta simplificación es clave: al usar una fórmula fija, se conoce con exactitud la trayectoria correcta, de modo que cualquier error observado en la distribución final se puede atribuir de forma predominante al método de integración numérica y no a un posible error de aprendizaje.
+    \item \textbf{Suavidad del campo vectorial:} Se asume que los campos vectoriales considerados son suficientemente suaves, es decir, sin saltos ni cambios bruscos. Esto garantiza que la ecuación diferencial tenga una solución única en cada punto y evita que dos trayectorias distintas se crucen en el mismo lugar y momento, lo que haría ambigua la dirección del movimiento.
+    \item \textbf{Ventaja de las trayectorias rectas:} Se asume que la rectitud de los flujos inducidos por Rectified Flow y Flow Matching reduce la curvatura del campo vectorial y, en consecuencia, el error de truncamiento local de los métodos numéricos, permitiendo el uso de tamaños de paso más grandes sin degradar significativamente la calidad de la solución.
 \end{itemize}
 
 \subsection{Métodos Numéricos Propuestos}
-Una vez que el modelo ha sido entrenado y el campo vectorial $v_\theta(Z_t, t)$ se encuentra definido, la fase de generación (inferencia) requiere aproximar la solución de la EDO desde $t=0$ hasta $t=1$. Para este propósito, se propone implementar y evaluar comparativamente tres métodos numéricos de un paso para problemas de valor inicial (PVI).
+Para resolver la EDO planteada, la fase de generación requiere aproximar la solución desde $t=0$ hasta $t=1$. Se proponen tres esquemas de integración numérica que cubren distintos niveles de precisión y costo computacional.
 
-Acorde a los lineamientos del curso, se proponen \textbf{dos métodos numéricos revisados en clase}:
+Acorde a los lineamientos del curso, se emplean \textbf{dos métodos numéricos revisados en clase}:
 \begin{enumerate}
-    \item \textbf{Método de Euler (Primer Orden):} Se implementa como el método base de comparación (baseline). Al ser el método explícito más sencillo y de paso fijo, se espera que presente un alto error de truncamiento frente a tamaños de paso grandes, permitiendo evaluar qué tan permisivas son las trayectorias rectas frente a integradores de bajo orden computacional.
-    \item \textbf{Método de Runge-Kutta de Cuarto Orden (RK4):} Se implementa como el integrador de alta precisión revisado en el curso. Su evaluación permitirá establecer un estándar de alta calidad visual de las muestras generadas de forma estática. Dado su mayor costo por iteración (cuatro evaluaciones de la función $v_\theta$ por paso temporal fijo), servirá para analizar críticamente el compromiso entre costo computacional (Número de Evaluaciones de la Función, NFE) y precisión.
+    \item \textbf{Método de Euler (primer orden):} Se implementa como método base de comparación. En cada paso, se calcula la velocidad actual y se avanza en línea recta ese intervalo temporal. Es el método más económico computacionalmente, pero se espera que presente un mayor error de truncamiento frente a tamaños de paso grandes, lo que permite evaluar qué tan permisivas resultan las trayectorias rectas frente a un integrador de bajo orden.
+    \item \textbf{Runge-Kutta de cuarto orden (RK4):} Se implementa como integrador de referencia de alta precisión. En cada paso evalúa la velocidad en cuatro puntos distintos y los combina para obtener una aproximación de mayor exactitud. Dado su mayor costo por iteración (cuatro evaluaciones del campo vectorial por paso), permite analizar el compromiso entre el costo computacional, medido como Número de Evaluaciones de la Función (NFE), y la precisión obtenida.
 \end{enumerate}
 
-Para complementar el análisis, se propone implementar \textbf{un método numérico no revisado explícitamente en clase}:
+Como \textbf{método numérico no revisado explícitamente en clase}, se propone:
 \begin{enumerate}
     \setcounter{enumi}{2}
-    \item \textbf{Método de Runge-Kutta Adaptativo (RK45 - Fehlberg / Dormand-Prince):} A diferencia de los métodos de paso fijo, este método empotrado calcula simultáneamente una aproximación de cuarto y quinto orden para estimar el error de truncamiento local en cada iteración. Esto permite adaptar dinámicamente el tamaño del paso temporal $dt$. Se propone este método porque es altamente eficiente para EDOs bien comportadas; en las zonas donde las trayectorias del modelo generativo sean efectivamente rectas, el RK45 aumentará automáticamente el tamaño de paso, optimizando el costo computacional (minimizando el NFE) sin comprometer la estricta tolerancia de error ni la precisión de la distribución generada $Z_1$.
+    \item \textbf{Runge-Kutta adaptativo (RK45, Fehlberg/Dormand-Prince):} A diferencia de los métodos de paso fijo, este integrador calcula simultáneamente una aproximación de cuarto y quinto orden para estimar el error de truncamiento local en cada iteración, y ajusta dinámicamente el tamaño de paso en función de dicha estimación. Se propone este método porque permite evaluar el costo computacional real necesario para alcanzar una tolerancia de error determinada: en las zonas donde la trayectoria sea recta, el paso se agranda automáticamente, optimizando el NFE sin comprometer la precisión de la distribución final obtenida.
 \end{enumerate}
 
+La elección de estos tres métodos responde directamente a los objetivos específicos (ii) y (iii) del estudio, pues permite construir curvas de error frente a costo computacional y analizar la sensibilidad del resultado final al tamaño de paso empleado, en línea con el análisis comparativo de integradores reportado por \citet{xiao2026solvers} para modelos de flow matching.
 
 % \section{Title 2}
 % \lipsum[1]
