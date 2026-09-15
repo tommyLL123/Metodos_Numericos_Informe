@@ -145,6 +145,53 @@ Por lo expuesto, como objetivo general tenemos: modelar numéricamente el transp
 \item Aplicar el modelo numérico al transporte de distribuciones bidimensionales para determinar la relación entre la rectitud de las trayectorias, el método de integración empleado y la eficiencia en la generación de muestras.
 \end{enumerate}
 
+\section{Metodología}
+\label{sec:metodologia}
+
+\subsection{Modelo del Sistema}
+El desarrollo de este proyecto se fundamenta en la formulación de Modelos Generativos Continuos (como Continuous Normalizing Flows), los cuales modelan la transformación progresiva de una densidad de probabilidad empírica a través del tiempo. Teóricamente, la evolución de esta densidad de probabilidad $p_t(x)$ en el tiempo $t \in [0,1]$ está gobernada rigurosamente por la ecuación de continuidad (o ecuación de transporte):
+\begin{equation}
+    \frac{\partial p_t(x)}{\partial t} + \nabla \cdot (p_t(x)v_t(x)) = 0
+\end{equation}
+donde el primer término representa la variación temporal de la densidad de probabilidad local, y el segundo término es la divergencia espacial del flujo de probabilidad. Esta Ecuación en Derivadas Parciales (EDP) asegura la conservación de la masa (probabilidad), determinando cómo el campo de velocidades $v_t(x)$ acumula o dispersa la distribución en el espacio.
+
+Para evitar la alta complejidad computacional de resolver la EDP directamente, el sistema se aborda desde una perspectiva lagrangiana. El transporte continuo se describe de manera equivalente mediante el seguimiento de trayectorias individuales a través de la siguiente Ecuación Diferencial Ordinaria (EDO):
+\begin{equation}
+    \frac{dZ_t}{dt} = v_\theta(Z_t, t), \quad Z_0 \sim \pi_0
+\end{equation}
+El problema central consiste en encontrar un campo vectorial aproximado por una red neuronal, $v_\theta(Z_t, t)$, que permita transportar muestras desde una distribución inicial simple y tratable $\pi_0$ (ruido gaussiano) hacia la distribución objetivo $\pi_1$ (los datos a generar). La solución en el instante $t=1$, denotada como $Z_1$, sigue la distribución empírica de los datos.
+
+Para entrenar $v_\theta$ sin resolver iterativamente la EDO durante la optimización, se emplean enfoques de emparejamiento libre de simulación (\textit{simulation-free}). Bajo el marco de Rectified Flow, el objetivo es conectar las muestras $X_0 \sim \pi_0$ y $X_1 \sim \pi_1$ mediante una interpolación lineal $X_t = tX_1 + (1-t)X_0$. La red se optimiza resolviendo el problema de mínimos cuadrados:
+\begin{equation}
+    \min_\theta \int_0^1 \mathbb{E} \left[ || (X_1 - X_0) - v_\theta(X_t, t) ||^2 \right] dt
+\end{equation}
+Equivalentemente, el marco de Flow Matching define una ruta de probabilidad condicional basada en Transporte Óptimo. Ambos enfoques garantizan matemáticamente que el transporte de partículas ocurra en líneas rectas y a velocidad constante, lo que simplifica la topología del campo vectorial y reduce drásticamente la dificultad de la integración numérica durante la fase de inferencia.
+
+\subsection{Supuestos y Simplificaciones}
+Para mantener un entorno controlado que permita enfocar el análisis puramente en el desempeño numérico, se establecen las siguientes simplificaciones y supuestos:
+\begin{itemize}
+    \item \textbf{Dimensionalidad reducida:} Se asume que el análisis numérico sobre distribuciones empíricas bidimensionales (conjuntos de datos sintéticos en 2D, como \textit{moons} o \textit{8-gaussians}) es representativo de la dinámica subyacente. Esto simplifica la visualización de las trayectorias de las EDOs y reduce significativamente la carga computacional, permitiendo evaluar múltiples métodos numéricos de forma eficiente.
+    \item \textbf{Distribución base estándar:} Se asume como distribución inicial tratable $\pi_0$ a una distribución Normal multivariada estándar $\mathcal{N}(0, I)$, facilitando el muestreo inicial $Z_0$.
+    \item \textbf{Precisión del Campo Vectorial:} Se asume que la red neuronal implementada (un Perceptrón Multicapa) aproxima con suficiente exactitud el campo vectorial ideal $v(x, t)$. En consecuencia, cualquier error en la distribución final generada $Z_1$ se atribuirá predominantemente al error de discretización del integrador numérico y no a un déficit en el entrenamiento del modelo.
+    \item \textbf{Ventaja de las trayectorias rectas:} Se asume teóricamente que la rectitud de los flujos inducidos por Flow Matching y Rectified Flow reduce significativamente la curvatura del campo vectorial. Bajo este supuesto, el error de truncamiento local de los métodos numéricos será menor, permitiendo el uso de tamaños de paso ($dt$) más grandes sin degradar drásticamente la calidad de la solución.
+\end{itemize}
+
+\subsection{Métodos Numéricos Propuestos}
+Una vez que el modelo ha sido entrenado y el campo vectorial $v_\theta(Z_t, t)$ se encuentra definido, la fase de generación (inferencia) requiere aproximar la solución de la EDO desde $t=0$ hasta $t=1$. Para este propósito, se propone implementar y evaluar comparativamente tres métodos numéricos de un paso para problemas de valor inicial (PVI).
+
+Acorde a los lineamientos del curso, se proponen \textbf{dos métodos numéricos revisados en clase}:
+\begin{enumerate}
+    \item \textbf{Método de Euler (Primer Orden):} Se implementa como el método base de comparación (baseline). Al ser el método explícito más sencillo y de paso fijo, se espera que presente un alto error de truncamiento frente a tamaños de paso grandes, permitiendo evaluar qué tan permisivas son las trayectorias rectas frente a integradores de bajo orden computacional.
+    \item \textbf{Método de Runge-Kutta de Cuarto Orden (RK4):} Se implementa como el integrador de alta precisión revisado en el curso. Su evaluación permitirá establecer un estándar de alta calidad visual de las muestras generadas de forma estática. Dado su mayor costo por iteración (cuatro evaluaciones de la función $v_\theta$ por paso temporal fijo), servirá para analizar críticamente el compromiso entre costo computacional (Número de Evaluaciones de la Función, NFE) y precisión.
+\end{enumerate}
+
+Para complementar el análisis, se propone implementar \textbf{un método numérico no revisado explícitamente en clase}:
+\begin{enumerate}
+    \setcounter{enumi}{2}
+    \item \textbf{Método de Runge-Kutta Adaptativo (RK45 - Fehlberg / Dormand-Prince):} A diferencia de los métodos de paso fijo, este método empotrado calcula simultáneamente una aproximación de cuarto y quinto orden para estimar el error de truncamiento local en cada iteración. Esto permite adaptar dinámicamente el tamaño del paso temporal $dt$. Se propone este método porque es altamente eficiente para EDOs bien comportadas; en las zonas donde las trayectorias del modelo generativo sean efectivamente rectas, el RK45 aumentará automáticamente el tamaño de paso, optimizando el costo computacional (minimizando el NFE) sin comprometer la estricta tolerancia de error ni la precisión de la distribución generada $Z_1$.
+\end{enumerate}
+
+
 % \section{Title 2}
 % \lipsum[1]
 % 
