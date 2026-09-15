@@ -168,12 +168,38 @@ Para entrenar $v_\theta$ sin resolver iterativamente la EDO durante la optimizac
 Equivalentemente, el marco de Flow Matching define una ruta de probabilidad condicional basada en Transporte Óptimo. Ambos enfoques garantizan matemáticamente que el transporte de partículas ocurra en líneas rectas y a velocidad constante, lo que simplifica la topología del campo vectorial y reduce drásticamente la dificultad de la integración numérica durante la fase de inferencia.
 
 \subsection{Supuestos y Simplificaciones}
-Para mantener un entorno controlado que permita enfocar el análisis puramente en el desempeño numérico, se establecen las siguientes simplificaciones y supuestos:
+\label{sec:supuestos}
+
+Para garantizar un entorno controlado que permita aislar y evaluar cuantitativamente el desempeño de los integradores numéricos sin la interferencia de factores ajenos al campo vectorial, se adoptan los siguientes supuestos teóricos y simplificaciones metodológicas, junto con sus respectivas limitaciones:
+
 \begin{itemize}
-    \item \textbf{Dimensionalidad reducida:} Se asume que el análisis numérico sobre distribuciones empíricas bidimensionales (conjuntos de datos sintéticos en 2D, como \textit{moons} o \textit{8-gaussians}) es representativo de la dinámica subyacente. Esto simplifica la visualización de las trayectorias de las EDOs y reduce significativamente la carga computacional, permitiendo evaluar múltiples métodos numéricos de forma eficiente.
-    \item \textbf{Distribución base estándar:} Se asume como distribución inicial tratable $\pi_0$ a una distribución Normal multivariada estándar $\mathcal{N}(0, I)$, facilitando el muestreo inicial $Z_0$.
-    \item \textbf{Precisión del Campo Vectorial:} Se asume que la red neuronal implementada (un Perceptrón Multicapa) aproxima con suficiente exactitud el campo vectorial ideal $v(x, t)$. En consecuencia, cualquier error en la distribución final generada $Z_1$ se atribuirá predominantemente al error de discretización del integrador numérico y no a un déficit en el entrenamiento del modelo.
-    \item \textbf{Ventaja de las trayectorias rectas:} Se asume teóricamente que la rectitud de los flujos inducidos por Flow Matching y Rectified Flow reduce significativamente la curvatura del campo vectorial. Bajo este supuesto, el error de truncamiento local de los métodos numéricos será menor, permitiendo el uso de tamaños de paso ($dt$) más grandes sin degradar drásticamente la calidad de la solución.
+    \item \textbf{Suavidad y regularidad del campo vectorial (Condición de Lipschitz):} Se asume que el campo vectorial $v_\theta(x,t)$ parametrizado por la red neuronal es continuo y satisface la condición de Lipschitz respecto a $x$ en el dominio compacto $\Omega \times [0,1]$, es decir, $\|v_\theta(x,t) - v_\theta(y,t)\| \le L \|x - y\|$ para alguna constante de Lipschitz $L > 0$. Este supuesto es fundamental para garantizar matemáticamente la existencia y unicidad de las trayectorias continuas $Z_t$ (Teorema de Picard-Lindelöf), así como la estabilidad de los métodos numéricos de Euler y Runge-Kutta \cite{lipman2022flow}.
+    
+    \textit{Limitación:} En la práctica, las aproximaciones mediante redes neuronales no acotadas pueden presentar discontinuidades locales o gradientes elevados en regiones de baja densidad de datos, lo que potencialmente incrementa el error de truncamiento local en pasos $dt$ grandes.
+
+    \item \textbf{Precisión e independización del entrenamiento:} Se asume que la red neuronal aproxima con suficiente exactitud el campo de velocidad ideal $v(x,t)$ tras la fase de optimización. En consecuencia, se asume que cualquier desviación o error observado en la distribución final generada $Z_1$ respecto a la distribución objetivo $\pi_1$ se atribuye predominantemente al error de discretización del integrador numérico y no a un déficit de capacidad del modelo generativo.
+    
+    \textit{Limitación:} Si el entrenamiento incurre en un error residual de regresión $\mathrm{MSE} > 0$, existe una frontera de error irreducible inherente al campo aprendido que ningún método de integración numérica puede corregir.
+
+    \item \textbf{Naturaleza determinista del flujo (Ausencia de difusividad estocástica):} A diferencia de los modelos de difusión estocástica tradicional basados en Ecuaciones Diferenciales Estocásticas (SDE), el marco de \textit{Flow Matching} y \textit{Rectified Flow} modela el transporte mediante una EDO puramente determinista \cite{liu2022flow}. Se asume que no existen perturbaciones estocásticas durante la integración temporal de las partículas desde $t=0$ hasta $t=1$.
+    
+    \textit{Limitación:} Aunque esta naturaleza determinista habilita el uso de integradores de EDOs estándar (Euler, RK4, RKF45), elimina el efecto autorregulador que el ruido estocástico suele aportar frente a pequeñas desviaciones en la trayectoria.
+
+    \item \textbf{Dimensionalidad reducida y datos sintéticos 2D:} Se asume que el análisis del transporte numérico sobre distribuciones empíricas bidimensionales (tales como \textit{moons} u \textit{8-gaussians}) refleja la dinámica cualitativa y cuantitativa de los flujos continuos de probabilidad. Esta simplificación permite visualizar de forma directa la geometría de las trayectorias y calcular de manera exacta los indicadores de costo computacional y error geométrico.
+    
+    \textit{Limitación:} La baja dimensionalidad reduce los problemas de mal acondicionamiento matricial y rigidez (\textit{stiffness}) que suelen emerger en espacios de alta dimensión (p. ej., imágenes de alta resolución), por lo que las tasas de convergencia observadas representan un escenario idealizado.
+
+    \item \textbf{Distribución base canónica:} Se adopta como distribución inicial $\pi_0$ una distribución Normal multivariada estándar $\mathcal{N}(0, I)$, facilitando el muestreo de condiciones iniciales $Z_0$ independientes e idénticamente distribuidas.
+    
+    \textit{Limitación:} Muestreos iniciales atípicos en las colas de la distribución gaussiana pueden requerir trayectorias de integración más extensas, exigiendo mayor adaptación en solucionadores de paso adaptativo.
+
+    \item \textbf{Arquitectura de red no convolucional (Aproximación por MLP):} Dado que las distribuciones objetivo son conjuntos de puntos bidimensionales continuos $(x_1, x_2) \in \mathbb{R}^2$ y no imágenes o datos estructurados en grillas espaciales, se asume que el campo de velocidad $v_\theta(x,t)$ se parametriza adecuadamente mediante un Perceptrón Multicapa (MLP) liviano con activaciones suaves (ej. Softplus o SiLU), en lugar de una red neuronal convolucional (CNN) o U-Net.
+    
+    \textit{Limitación:} Aunque el MLP simplifica drásticamente el entrenamiento y la evaluación en MATLAB, no posee la inductiva de invarianza espacial propia de las CNNs, lo que limita este modelo a problemas de baja dimensión.
+
+    \item \textbf{Formulación determinista frente a Modelos de Difusión Estocásticos:} Se adopta el supuesto de que el transporte de probabilidad se rige por la ODE de flujo de probabilidad determinista de \textit{Flow Matching}, prescindiendo del término de difusión estocástica $\sigma(t)dW_t$ propio de los modelos de difusión tradicionales (SDEs/DDPM) \cite{lipman2022flow}. Asimismo, se asume que el entrenamiento mediante regresión de campos vectoriales condicionales ($\mathrm{MSE}$) reemplaza con suficiente precisión el aprendizaje por estimación de \textit{score} (\textit{score-based diffusion}).
+    
+    \textit{Limitación:} Al eliminar la estocasticidad durante el muestreo, el modelo pierde el efecto de "autocorrección" de ruido que poseen las SDEs, haciendo que la precisión de la trayectoria dependa exclusivamente de la estabilidad del integrador numérico elegido (Euler, RK4 o RKF45).
 \end{itemize}
 
 \subsection{Métodos Numéricos Propuestos}
