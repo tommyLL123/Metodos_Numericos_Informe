@@ -153,52 +153,63 @@ Por lo expuesto, como objetivo general tenemos: modelar numéricamente el transp
 
 El fenómeno de estudio se modela mediante una ecuación diferencial ordinaria que describe el transporte continuo de una muestra:
 \begin{equation}
-    \frac{dx_t}{dt}=v_\theta(x_t,t),
+    \frac{dx_t}{dt}=v(x_t,t),
     \qquad x_0\sim p_0,
     \qquad t\in[0,1],
 \end{equation}
-\noindent donde $x_t\in\mathbb{R}^2$ representa el estado de una muestra en el instante $t$, $p_0$ es la distribución inicial y $v_\theta$ es el campo vectorial de velocidad. La solución de esta ecuación induce una evolución de la distribución desde $p_0$ hacia una distribución objetivo $p_1$, como se plantea en las formulaciones de Flow Matching basadas en ecuaciones diferenciales ordinarias \citep{lipman2022flow,tong2023improving,yang2024consistency}.
+\noindent donde $x_t\in\mathbb{R}^2$ representa el estado de una muestra en el instante $t$, $p_0=\mathcal{N}(0,I)$ es la distribución inicial (gaussiana estándar bidimensional) y $v(x_t,t)$ es el campo vectorial de velocidad. La solución de esta ecuación transporta las muestras desde $p_0$ hacia una distribución objetivo bidimensional $p_1$, fijada en este trabajo como una mezcla de gaussianas, siguiendo el tipo de configuraciones sintéticas utilizadas en estudios comparativos de integradores para Flow Matching \citep{xiao2026solvers}.
 
-Para definir una trayectoria de referencia, se utiliza la interpolación condicional lineal de Flow Matching:
-\begin{equation}
-    x_t=(1-t)x_0+t x_1,
-\end{equation}
-\noindent donde $x_0$ y $x_1$ representan muestras de las distribuciones inicial y objetivo, respectivamente. Al derivar respecto del tiempo se obtiene la velocidad condicional
-\begin{equation}
-    u_t(x_0,x_1)=\frac{d x_t}{dt}=x_1-x_0.
-\end{equation}
-\noindent Por consiguiente, la trayectoria condicional es una línea recta con velocidad constante. Esta construcción se encuentra en las formulaciones de Flow Matching y en los trabajos que estudian la rectitud de las trayectorias \citep{lipman2022flow,pooladian2023multisample}.
+Se definen dos campos de velocidad, con el fin de comparar el efecto de la curvatura de la trayectoria sobre cada integrador:
 
-El campo de velocidad se formula, en el enfoque de Flow Matching, mediante una función que aproxima la velocidad condicional a través de una regresión cuadrática:
+\textbf{Campo recto.} Se construye mediante la interpolación lineal entre un par de muestras $x_0\sim p_0$ y $x_1\sim p_1$:
 \begin{equation}
-    \mathcal{L}(\theta)=
-    \mathbb{E}\left[
-    \left\|
-    v_\theta(x_t,t)-u_t(x_0,x_1)
-    \right\|^2
-    \right].
+    x_t=(1-t)x_0+t x_1.
 \end{equation}
-\noindent Esta formulación corresponde al objetivo de Flow Matching descrito por \citet{lipman2022flow,tong2023improving}.
+\noindent Al derivar respecto del tiempo se obtiene una velocidad constante:
+\begin{equation}
+    v(x_t,t)=\frac{d x_t}{dt}=x_1-x_0,
+\end{equation}
+\noindent de modo que la trayectoria resultante es una línea recta a velocidad constante, siguiendo la construcción de trayectorias rectas de Flow Matching y Rectified Flow \citep{lipman2022flow,liu2022flow,pooladian2023multisample}.
 
-El análisis numérico se concentra en la resolución de la EDO durante el transporte. Por ello, para comparar los métodos de integración se mantiene fijo el problema de transporte y se modifica únicamente el integrador empleado para aproximar la solución temporal. De esta manera, la comparación se enfoca en el efecto de la discretización numérica.
+\textbf{Campo curvo.} Se construye añadiendo una perturbación dependiente del tiempo a la interpolación lineal:
+\begin{equation}
+    x_t=(1-t)x_0+t x_1+t(1-t)\,c,
+\end{equation}
+\noindent donde $c\in\mathbb{R}^2$ es un vector fijo que desplaza la trayectoria respecto de la línea recta en los instantes intermedios. El término $t(1-t)$ se anula en $t=0$ y en $t=1$, por lo que la trayectoria conserva los mismos puntos de partida y llegada que el campo recto. La velocidad correspondiente es:
+\begin{equation}
+    v(x_t,t)=(x_1-x_0)+(1-2t)\,c,
+\end{equation}
+\noindent la cual ya no es constante en el tiempo, generando una trayectoria curva que permite evaluar el desempeño de los integradores frente a una geometría no lineal.
+
+Como ambos campos se definen mediante una fórmula analítica cerrada, la posición verdadera $x_t$ en cualquier instante $t$ se conoce de forma exacta, lo que permite aislar el error introducido por cada método de integración numérica sin la interferencia de un posible error de aprendizaje.
+
+El análisis numérico se concentra en la resolución de la EDO durante el transporte, manteniendo fijo el campo vectorial (recto o curvo) y modificando únicamente el integrador empleado, de manera que la comparación se enfoca exclusivamente en el efecto de la discretización numérica.
 
 \subsection{Supuestos y simplificaciones del modelo}
 
 Para la primera etapa del proyecto se consideran las siguientes simplificaciones:
 
 \begin{itemize}
-    \item \textbf{Dimensión bidimensional:} el análisis se realiza en $\mathbb{R}^2$ para estudiar directamente la evolución y la geometría de las trayectorias. Este tipo de configuración bidimensional también aparece en experimentos comparativos de integradores para Flow Matching \citep{xiao2026solvers}.
+    \item \textbf{Dimensión bidimensional:} el análisis se realiza en $\mathbb{R}^2$ para estudiar directamente la evolución y la geometría de las trayectorias, en línea con experimentos comparativos de integradores para Flow Matching \citep{xiao2026solvers}.
     
-    \item \textbf{Distribución inicial simple:} se emplea una distribución normal estándar como distribución de partida, siguiendo la formulación utilizada para la variable inicial en Flow Matching \citep{lipman2022flow,xiao2026solvers}.
+    \item \textbf{Campos analíticos, sin entrenamiento:} el campo de velocidad se define mediante una fórmula matemática conocida (recta o curva), en lugar de entrenar una red neuronal. Esto permite conocer con exactitud la trayectoria verdadera y atribuir cualquier desviación observada al error de discretización del integrador, y no a un posible déficit de aprendizaje.
     
-    \item \textbf{Intervalo temporal normalizado:} se considera $t\in[0,1]$, intervalo utilizado en las formulaciones de interpolación y flujo continuo de los trabajos de referencia \citep{lipman2022flow,pooladian2023multisample,xiao2026solvers}.
+    \item \textbf{Distribuciones fijas y sintéticas:} se emplea $p_0=\mathcal{N}(0,I)$ como distribución inicial y una mezcla de gaussianas bidimensional como distribución objetivo $p_1$, manteniendo un entorno controlado y reproducible.
     
-    \item \textbf{Campo fijo durante la comparación:} el campo vectorial utilizado en cada experimento se mantiene constante al cambiar el integrador. Así, el análisis se concentra en el efecto del método numérico y de su configuración.
+    \item \textbf{Suavidad del campo vectorial:} se asume que los campos definidos son continuos y sin discontinuidades, lo que garantiza que la ecuación diferencial tenga solución única en cada punto y evita que dos trayectorias se crucen en un mismo instante.
     
-    \item \textbf{Distribuciones sintéticas:} se trabaja con distribuciones bidimensionales sintéticas para mantener un entorno controlado y facilitar la observación de las trayectorias, en concordancia con el tipo de experimentos bidimensionales utilizado por \citet{xiao2026solvers}.
+    \item \textbf{Campo fijo durante la comparación:} el campo vectorial utilizado en cada experimento se mantiene constante al cambiar el integrador, de modo que el análisis se concentra en el efecto del método numérico.
 \end{itemize}
 
 Estas simplificaciones permiten concentrar el estudio en la resolución numérica de la EDO. En esta primera entrega no se desarrolla todavía la implementación ni se presentan resultados; el énfasis se mantiene en la formulación del modelo, sus supuestos y la selección de los métodos numéricos.
+
+\subsection{Métrica de error}
+
+Dado que los campos recto y curvo se definen de forma analítica, la posición verdadera al tiempo $t=1$ coincide exactamente con $x_1$. El error de cada método de integración se define como la distancia euclidiana entre la posición final obtenida numéricamente, $\hat{x}_1$, y la posición verdadera $x_1$:
+\begin{equation}
+    e=\|\hat{x}_1-x_1\|_2.
+\end{equation}
+\noindent Esta métrica permite aislar el error introducido exclusivamente por la discretización numérica, ya que la trayectoria de referencia es conocida de antemano y no depende de ningún proceso de aprendizaje.
 
 \subsection{Métodos numéricos propuestos}
 
@@ -208,7 +219,7 @@ Para aproximar la solución de la EDO desde $t=0$ hasta $t=1$ se proponen tres m
 
 El método de Euler aproxima la solución mediante
 \begin{equation}
-    x_{n+1}=x_n+h\,v_\theta(x_n,t_n),
+    x_{n+1}=x_n+h\,v(x_n,t_n),
 \end{equation}
 \noindent donde $h$ representa el tamaño de paso. Es un método de primer orden y realiza una evaluación del campo vectorial por paso \citep{xiao2026solvers}. Se utiliza como método base para estudiar cómo la discretización temporal afecta la aproximación de la trayectoria.
 
@@ -216,16 +227,16 @@ El método de Euler aproxima la solución mediante
 
 El método RK4 utiliza cuatro evaluaciones del campo vectorial en cada paso:
 \begin{align}
- k_1 &= f(t_n,x_n),\\
- k_2 &= f\left(t_n+\frac{h}{2},x_n+\frac{h}{2}k_1\right),\\
- k_3 &= f\left(t_n+\frac{h}{2},x_n+\frac{h}{2}k_2\right),\\
- k_4 &= f(t_n+h,x_n+h k_3).
+ k_1 &= v(x_n,t_n),\\
+ k_2 &= v\left(x_n+\frac{h}{2}k_1,\,t_n+\frac{h}{2}\right),\\
+ k_3 &= v\left(x_n+\frac{h}{2}k_2,\,t_n+\frac{h}{2}\right),\\
+ k_4 &= v(x_n+h k_3,\,t_n+h).
 \end{align}
 \noindent La actualización se obtiene mediante
 \begin{equation}
  x_{n+1}=x_n+\frac{h}{6}(k_1+2k_2+2k_3+k_4).
 \end{equation}
-\noindent El método presenta error global de orden $O(h^4)$ y requiere cuatro evaluaciones del campo por paso \citep{xiao2026solvers}. Esto permite contrastar un método de cuarto orden con Euler manteniendo el mismo problema dinámico.
+\noindent El método presenta error global de orden $O(h^4)$ y requiere cuatro evaluaciones del campo por paso \citep{xiao2026solvers}, lo que permite contrastar un método de cuarto orden con Euler manteniendo el mismo problema dinámico.
 
 \subsubsection{Runge--Kutta 4/5 (RK45)}
 
@@ -233,7 +244,7 @@ Como tercer método se utiliza RK45, basado en un esquema Runge--Kutta embebido 
 
 A diferencia de Euler y RK4, que se plantean con un tamaño de paso fijado previamente, RK45 adapta el paso según una tolerancia de error. Esto permite incluir en la comparación un integrador cuya discretización temporal se ajusta durante la resolución de la EDO \citep{xiao2026solvers}.
 
-En conjunto, Euler, RK4 y RK45 constituyen los tres métodos numéricos que se utilizarán para resolver el mismo problema de transporte. La comparación posterior permitirá analizar cómo el orden y la estrategia de selección del paso influyen sobre la aproximación numérica y el costo asociado a la integración.
+En conjunto, Euler, RK4 y RK45 constituyen los tres métodos numéricos que se utilizarán para resolver el mismo problema de transporte, sobre el campo recto y el campo curvo definidos previamente. La comparación posterior, empleando la métrica de error definida, permitirá analizar cómo el orden y la estrategia de selección del paso influyen sobre la aproximación numérica y el costo asociado a la integración.
 
 \begin{thebibliography}{00}
 
