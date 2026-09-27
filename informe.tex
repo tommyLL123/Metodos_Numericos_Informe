@@ -11,6 +11,7 @@
 
 %% The amssymb package provides various useful mathematical symbols
 \usepackage{amssymb}
+\usepackage{amsmath}
 \usepackage{lipsum}
 \usepackage{hyperref}
 
@@ -148,141 +149,134 @@ Por lo expuesto, como objetivo general tenemos: modelar numéricamente el transp
 \section{Metodología}
 \label{sec:metodologia}
 
-\subsection{Modelo del Sistema}
-El fenómeno de estudio se modela como un flujo continuo descrito por la Ecuación Diferencial Ordinaria (EDO):
+\subsection{Modelo del sistema}
+
+El fenómeno de estudio se modela mediante una ecuación diferencial ordinaria que describe el transporte continuo de una muestra:
 \begin{equation}
-    \frac{dx_t}{dt} = v(x_t, t), \qquad x_0 \sim \pi_0, \qquad t \in [0,1],
+    \frac{dx_t}{dt}=v_\theta(x_t,t),
+    \qquad x_0\sim p_0,
+    \qquad t\in[0,1],
 \end{equation}
-donde $x_t \in \mathbb{R}^2$ representa la posición de una partícula en el instante $t$, $\pi_0$ es una distribución inicial simple (una distribución Normal multivariada estándar $\mathcal{N}(0, I)$) y $v(x_t, t)$ es un campo vectorial de velocidad que transporta las muestras hacia una distribución objetivo bidimensional $\pi_1$ al tiempo $t=1$. El punto parte de una posición inicial aleatoria en $t=0$ y la simulación corre hasta $t=1$, momento en el cual se espera que haya alcanzado la distribución objetivo.
+\noindent donde $x_t\in\mathbb{R}^2$ representa el estado de una muestra en el instante $t$, $p_0$ es la distribución inicial y $v_\theta$ es el campo vectorial de velocidad. La solución de esta ecuación induce una evolución de la distribución desde $p_0$ hacia una distribución objetivo $p_1$, como se plantea en las formulaciones de Flow Matching basadas en ecuaciones diferenciales ordinarias \citep{lipman2022flow,tong2023improving,yang2024consistency}.
 
-Se consideran dos formas de definir el campo $v$: (a) un campo vectorial recto, construido mediante interpolación lineal $x_t = t x_1 + (1-t) x_0$ entre pares de puntos muestreados de $\pi_0$ y $\pi_1$, cuya velocidad resulta constante e igual a $v = x_1 - x_0$; y (b) un campo vectorial curvo de referencia, que introduce no linealidad en la trayectoria. Esta idea de emplear una velocidad constante para trazar trayectorias rectas corresponde al principio central propuesto por \citet{liu2022flow} en Rectified Flow y por \citet{lipman2022flow} en Flow Matching. Cabe notar que, en ambos trabajos, el campo de velocidad se obtiene habitualmente entrenando una red neuronal $v_\theta(x,t)$ mediante regresión condicional; en el presente estudio se opta por campos definidos analíticamente en lugar de entrenar dicha red, con el fin de aislar el efecto del método de integración numérica sin introducir la variabilidad propia del proceso de aprendizaje, tal como se detalla en los Supuestos. Como distribuciones objetivo $\pi_1$ se emplean conjuntos de datos sintéticos bidimensionales y reproducibles: una mezcla de gaussianas y el conjunto conocido como \textit{two moons}. Se usan ambas versiones del campo $v$ a propósito, dado que el objetivo es comparar si la forma del camino (recto frente a curvo) afecta el resultado al cambiar el método de integración.
+Para definir una trayectoria de referencia, se utiliza la interpolación condicional lineal de Flow Matching:
+\begin{equation}
+    x_t=(1-t)x_0+t x_1,
+\end{equation}
+\noindent donde $x_0$ y $x_1$ representan muestras de las distribuciones inicial y objetivo, respectivamente. Al derivar respecto del tiempo se obtiene la velocidad condicional
+\begin{equation}
+    u_t(x_0,x_1)=\frac{d x_t}{dt}=x_1-x_0.
+\end{equation}
+\noindent Por consiguiente, la trayectoria condicional es una línea recta con velocidad constante. Esta construcción se encuentra en las formulaciones de Flow Matching y en los trabajos que estudian la rectitud de las trayectorias \citep{lipman2022flow,pooladian2023multisample}.
 
-\subsection{Supuestos y Simplificaciones}
-Se adoptan las siguientes simplificaciones respecto al problema general abordado en la literatura, con el fin de enfocar el análisis en el desempeño del integrador numérico:
+El campo de velocidad se formula, en el enfoque de Flow Matching, mediante una función que aproxima la velocidad condicional a través de una regresión cuadrática:
+\begin{equation}
+    \mathcal{L}(\theta)=
+    \mathbb{E}\left[
+    \left\|
+    v_\theta(x_t,t)-u_t(x_0,x_1)
+    \right\|^2
+    \right].
+\end{equation}
+\noindent Esta formulación corresponde al objetivo de Flow Matching descrito por \citet{lipman2022flow,tong2023improving}.
+
+El análisis numérico se concentra en la resolución de la EDO durante el transporte. Por ello, para comparar los métodos de integración se mantiene fijo el problema de transporte y se modifica únicamente el integrador empleado para aproximar la solución temporal. De esta manera, la comparación se enfoca en el efecto de la discretización numérica.
+
+\subsection{Supuestos y simplificaciones del modelo}
+
+Para la primera etapa del proyecto se consideran las siguientes simplificaciones:
 
 \begin{itemize}
-    \item \textbf{Dimensionalidad reducida:} Se trabaja en dimensión $d=2$, en lugar de las imágenes de alta dimensión reportadas en los artículos de referencia. Esto permite visualizar directamente las trayectorias individuales y las distribuciones resultantes, además de reducir la carga computacional necesaria para evaluar múltiples métodos numéricos.
-    \item \textbf{Campos vectoriales analíticos:} Se emplean campos de velocidad definidos mediante una fórmula matemática conocida, en lugar de entrenar una red neuronal como en el objetivo de regresión condicional de \citet{lipman2022flow}. Esta simplificación es clave: al usar una fórmula fija, se conoce con exactitud la trayectoria correcta, de modo que cualquier error observado en la distribución final se puede atribuir de forma predominante al método de integración numérica y no a un posible error de aprendizaje.
-    \item \textbf{Suavidad del campo vectorial:} Se asume que los campos vectoriales considerados son suficientemente suaves, es decir, sin saltos ni cambios bruscos. Esto garantiza que la ecuación diferencial tenga una solución única en cada punto y evita que dos trayectorias distintas se crucen en el mismo lugar y momento, lo que haría ambigua la dirección del movimiento.
-    \item \textbf{Ventaja de las trayectorias rectas:} Se asume que la rectitud de los flujos inducidos por Rectified Flow y Flow Matching reduce la curvatura del campo vectorial y, en consecuencia, el error de truncamiento local de los métodos numéricos, permitiendo el uso de tamaños de paso más grandes sin degradar significativamente la calidad de la solución.
+    \item \textbf{Dimensión bidimensional:} el análisis se realiza en $\mathbb{R}^2$ para estudiar directamente la evolución y la geometría de las trayectorias. Este tipo de configuración bidimensional también aparece en experimentos comparativos de integradores para Flow Matching \citep{xiao2026solvers}.
+    
+    \item \textbf{Distribución inicial simple:} se emplea una distribución normal estándar como distribución de partida, siguiendo la formulación utilizada para la variable inicial en Flow Matching \citep{lipman2022flow,xiao2026solvers}.
+    
+    \item \textbf{Intervalo temporal normalizado:} se considera $t\in[0,1]$, intervalo utilizado en las formulaciones de interpolación y flujo continuo de los trabajos de referencia \citep{lipman2022flow,pooladian2023multisample,xiao2026solvers}.
+    
+    \item \textbf{Campo fijo durante la comparación:} el campo vectorial utilizado en cada experimento se mantiene constante al cambiar el integrador. Así, el análisis se concentra en el efecto del método numérico y de su configuración.
+    
+    \item \textbf{Distribuciones sintéticas:} se trabaja con distribuciones bidimensionales sintéticas para mantener un entorno controlado y facilitar la observación de las trayectorias, en concordancia con el tipo de experimentos bidimensionales utilizado por \citet{xiao2026solvers}.
 \end{itemize}
 
-\subsection{Métodos Numéricos Propuestos}
-Para resolver la EDO planteada, la fase de generación requiere aproximar la solución desde $t=0$ hasta $t=1$. Se proponen tres esquemas de integración numérica que cubren distintos niveles de precisión y costo computacional.
+Estas simplificaciones permiten concentrar el estudio en la resolución numérica de la EDO. En esta primera entrega no se desarrolla todavía la implementación ni se presentan resultados; el énfasis se mantiene en la formulación del modelo, sus supuestos y la selección de los métodos numéricos.
 
-Acorde a los lineamientos del curso, se emplean \textbf{dos métodos numéricos revisados en clase}:
-\begin{enumerate}
-    \item \textbf{Método de Euler (primer orden):} Se implementa como método base de comparación. En cada paso, se calcula la velocidad actual y se avanza en línea recta ese intervalo temporal. Es el método más económico computacionalmente, pero se espera que presente un mayor error de truncamiento frente a tamaños de paso grandes, lo que permite evaluar qué tan permisivas resultan las trayectorias rectas frente a un integrador de bajo orden.
-    \item \textbf{Runge-Kutta de cuarto orden (RK4):} Se implementa como integrador de referencia de alta precisión. En cada paso evalúa la velocidad en cuatro puntos distintos y los combina para obtener una aproximación de mayor exactitud. Dado su mayor costo por iteración (cuatro evaluaciones del campo vectorial por paso), permite analizar el compromiso entre el costo computacional, medido como Número de Evaluaciones de la Función (NFE), y la precisión obtenida.
-\end{enumerate}
+\subsection{Métodos numéricos propuestos}
 
-Como \textbf{método numérico no revisado explícitamente en clase}, se propone:
-\begin{enumerate}
-    \setcounter{enumi}{2}
-    \item \textbf{Runge-Kutta adaptativo (RK45, Fehlberg/Dormand-Prince):} A diferencia de los métodos de paso fijo, este integrador calcula simultáneamente una aproximación de cuarto y quinto orden para estimar el error de truncamiento local en cada iteración, y ajusta dinámicamente el tamaño de paso en función de dicha estimación. Se propone este método porque permite evaluar el costo computacional real necesario para alcanzar una tolerancia de error determinada: en las zonas donde la trayectoria sea recta, el paso se agranda automáticamente, optimizando el NFE sin comprometer la precisión de la distribución final obtenida.
-\end{enumerate}
+Para aproximar la solución de la EDO desde $t=0$ hasta $t=1$ se proponen tres métodos de integración: Euler, Runge--Kutta de cuarto orden (RK4) y Runge--Kutta 4/5 (RK45). La elección permite comparar métodos de diferente orden y, en el caso de RK45, incorporar control adaptativo del tamaño de paso \citep{xiao2026solvers}.
 
-La elección de estos tres métodos responde directamente a los objetivos específicos (ii) y (iii) del estudio, pues permite construir curvas de error frente a costo computacional y analizar la sensibilidad del resultado final al tamaño de paso empleado, en línea con el análisis comparativo de integradores reportado por \citet{xiao2026solvers} para modelos de flow matching.
+\subsubsection{Método de Euler}
 
-% \section{Title 2}
-% \lipsum[1]
-% 
-% \subsection{Subsection title}
-% 
-% \begin{figure}[htbp]
-% 	\centering     \includegraphics[width=0.4\textwidth, angle=-90]{PHYSO_cover_image.pdf}	
-% 	\caption{Physics Open journal cover} 
-% 	\label{fig_mom0}%
-% \end{figure}
-% 
-% A random equation, the Toomre stability criterion:
-% 
-% \begin{equation}
-%     Q = \frac{\sigma_v \times \kappa}{\pi \times G \times \Sigma}
-% \end{equation}
-% 
-% \section{Title 3}
-% \lipsum[2]
-% 
-% \subsection{Subsection title}
-% \lipsum[3]
-% 
-% \begin{table}[htbp]
-% \centering
-% \begin{tabular}{l c c c} 
-%  \hline
-%  Source & RA (J2000) & DEC (J2000) & $V_{\rm sys}$ \\
-%          & [h,m,s]    & [o,','']    & \kms          \\
-%  \hline
-%  NGC\,253 & 00:47:33.120 & -25:17:17.59 & $235 \pm 1$ \\ 
-%  M\,82 & 09:55:52.725, & +69:40:45.78 & $269 \pm 2$  \\ 
-%  \hline
-% \end{tabular}
-% \caption{Random table with galaxies coordinates and velocities.}
-% \label{Table1}
-% \end{table}
-% 
-% 
-% \section{Discussion}
-% \lipsum[4]
-% 
-% \section{Summary and conclusions}
-% \lipsum[1-4]
-% 
-% 
-% \section*{Acknowledgements}
-% Thanks to ...
-% 
-% \appendix
-% 
-% \section{Appendix title 1}
-% 
-% \section{Appendix title 2}
+El método de Euler aproxima la solución mediante
+\begin{equation}
+    x_{n+1}=x_n+h\,v_\theta(x_n,t_n),
+\end{equation}
+\noindent donde $h$ representa el tamaño de paso. Es un método de primer orden y realiza una evaluación del campo vectorial por paso \citep{xiao2026solvers}. Se utiliza como método base para estudiar cómo la discretización temporal afecta la aproximación de la trayectoria.
 
-%% Bibliografía integrada directamente
+\subsubsection{Runge--Kutta de cuarto orden (RK4)}
+
+El método RK4 utiliza cuatro evaluaciones del campo vectorial en cada paso:
+\begin{align}
+ k_1 &= f(t_n,x_n),\\
+ k_2 &= f\left(t_n+\frac{h}{2},x_n+\frac{h}{2}k_1\right),\\
+ k_3 &= f\left(t_n+\frac{h}{2},x_n+\frac{h}{2}k_2\right),\\
+ k_4 &= f(t_n+h,x_n+h k_3).
+\end{align}
+\noindent La actualización se obtiene mediante
+\begin{equation}
+ x_{n+1}=x_n+\frac{h}{6}(k_1+2k_2+2k_3+k_4).
+\end{equation}
+\noindent El método presenta error global de orden $O(h^4)$ y requiere cuatro evaluaciones del campo por paso \citep{xiao2026solvers}. Esto permite contrastar un método de cuarto orden con Euler manteniendo el mismo problema dinámico.
+
+\subsubsection{Runge--Kutta 4/5 (RK45)}
+
+Como tercer método se utiliza RK45, basado en un esquema Runge--Kutta embebido que permite estimar el error local y adaptar el tamaño de paso. En particular, el método Dormand--Prince 5(4), empleado como RK45 en el análisis de \citet{xiao2026solvers}, utiliza aproximaciones de diferente orden para estimar el error y decidir el siguiente tamaño de paso.
+
+A diferencia de Euler y RK4, que se plantean con un tamaño de paso fijado previamente, RK45 adapta el paso según una tolerancia de error. Esto permite incluir en la comparación un integrador cuya discretización temporal se ajusta durante la resolución de la EDO \citep{xiao2026solvers}.
+
+En conjunto, Euler, RK4 y RK45 constituyen los tres métodos numéricos que se utilizarán para resolver el mismo problema de transporte. La comparación posterior permitirá analizar cómo el orden y la estrategia de selección del paso influyen sobre la aproximación numérica y el costo asociado a la integración.
+
 \begin{thebibliography}{00}
 
-\bibitem[Lipman et al.(2022)]{lipman2022flow}
-Lipman, Y., Chen, R.~T.~Q., Ben-Hamu, H., Nickel, M., Le, M., 2022.
+\bibitem[Lipman et al.(2023)]{lipman2022flow}
+Lipman, Y., Chen, R.~T.~Q., Ben-Hamu, H., Nickel, M., \& Le, M. (2023).
 Flow matching for generative modeling.
-arXiv preprint arXiv:2210.02747.
-\url{https://doi.org/10.48550/arXiv.2210.02747}
+\textit{Transactions on Machine Learning Research}.
+\url{https://arxiv.org/abs/2210.02747}
 
 \bibitem[Liu et al.(2022)]{liu2022flow}
-Liu, X., Gong, C., Liu, Q., 2022.
+Liu, X., Gong, C., \& Liu, Q. (2022).
 Flow straight and fast: Learning to generate and transfer data with rectified flow.
-arXiv preprint arXiv:2209.03003.
-\url{https://doi.org/10.48550/arXiv.2209.03003}
+\textit{arXiv preprint arXiv:2209.03003}.
+\url{https://arxiv.org/abs/2209.03003}
 
 \bibitem[Pooladian et al.(2023)]{pooladian2023multisample}
-Pooladian, A.-A., Ben-Hamu, H., Domingo-Enrich, C., Amos, B., Lipman, Y., Chen, R.~T.~Q., 2023.
+Pooladian, A.-A., Ben-Hamu, H., Domingo-Enrich, C., Amos, B., Lipman, Y., \& Chen, R.~T.~Q. (2023).
 Multisample flow matching: Straightening flows with minibatch couplings.
-In: Proceedings of the 40th International Conference on Machine Learning. PMLR, pp. 28100--28120.
+In \textit{Proceedings of the 40th International Conference on Machine Learning}, PMLR 202, 28100--28120.
 \url{https://proceedings.mlr.press/v202/pooladian23a.html}
 
-\bibitem[Tong et al.(2023)]{tong2023improving}
-Tong, A., Fatras, K., Malkin, N., Huguet, G., Zhang, Y., Rector-Brooks, J., Wolf, G., Bengio, Y., 2023.
+\bibitem[Tong et al.(2024)]{tong2023improving}
+Tong, A., Fatras, K., Malkin, N., Huguet, G., Zhang, Y., Rector-Brooks, J., Wolf, G., \& Bengio, Y. (2024).
 Improving and generalizing flow-based generative models with minibatch optimal transport.
-arXiv preprint arXiv:2302.00482.
-\url{https://doi.org/10.48550/arXiv.2302.00482}
+\textit{Transactions on Machine Learning Research}.
+\url{https://openreview.net/forum?id=CD9Snc73AW}
 
 \bibitem[Yang et al.(2024)]{yang2024consistency}
-Yang, L., Zhang, Z., Zhang, Z., Liu, X., Xu, M., Zhang, W., Meng, C., Ermon, S., Cui, B., 2024.
+Yang, L., Zhang, Z., Zhang, Z., Liu, X., Xu, M., Zhang, W., Meng, C., Ermon, S., \& Cui, B. (2024).
 Consistency flow matching: Defining straight flows with velocity consistency.
-arXiv preprint arXiv:2407.02398.
-\url{https://doi.org/10.48550/arXiv.2407.02398}
+\textit{arXiv preprint arXiv:2407.02398}.
+\url{https://arxiv.org/abs/2407.02398}
 
 \bibitem[Zhou and Liu(2025)]{zhou2025error}
-Zhou, Z., Liu, W., 2025.
-An Error Analysis of Flow Matching for Deep Generative Modeling.
-In: Proceedings of the 42nd International Conference on Machine Learning.
-PMLR 267, 78903--78932.
-\url{https://proceedings.mlr.press/v267/zhou25l.html}
+Zhou, Z., \& Liu, W. (2025).
+An error analysis of flow matching for deep generative modeling.
+In \textit{Proceedings of the 42nd International Conference on Machine Learning}.
+\url{https://arxiv.org/abs/2501.09674}
 
 \bibitem[Xiao(2026)]{xiao2026solvers}
-Xiao, H., 2026.
-From Euler to Dormand-Prince: ODE Solvers for Flow Matching Generative Models.
-arXiv preprint arXiv:2605.00836.
+Xiao, H. (2026).
+From Euler to Dormand--Prince: ODE solvers for Flow Matching generative models.
+\textit{arXiv preprint arXiv:2605.00836}.
 \url{https://arxiv.org/abs/2605.00836}
 
 \end{thebibliography}
